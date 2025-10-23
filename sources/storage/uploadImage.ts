@@ -1,6 +1,6 @@
 import { randomKey } from "@/utils/randomKey";
 import { processImage } from "./processImage";
-import { s3bucket, s3client, s3host } from "./files";
+import { s3bucket, s3client, s3host, s3Enabled } from "./files";
 import { db } from "./db";
 
 export async function uploadImage(userId: string, directory: string, prefix: string, url: string, src: Buffer) {
@@ -25,6 +25,9 @@ export async function uploadImage(userId: string, directory: string, prefix: str
     const processed = await processImage(src);
     const key = randomKey(prefix);
     let filename = `${key}.${processed.format === 'png' ? 'png' : 'jpg'}`;
+    if (!s3Enabled || !s3client) {
+        throw new Error('S3 is disabled in this environment (set S3_ENABLED=true and configure S3 variables)');
+    }
     await s3client.putObject(s3bucket, 'public/users/' + userId + '/' + directory + '/' + filename, src);
     await db.uploadedFile.create({
         data: {

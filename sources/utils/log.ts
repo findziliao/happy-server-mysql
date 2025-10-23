@@ -40,8 +40,9 @@ transports.push({
     options: {
         colorize: true,
         translateTime: 'HH:MM:ss.l',
-        ignore: 'pid,hostname',
-        messageFormat: '{levelLabel} {msg} | [{time}]',
+        // Also ignore 'name' so pretty printer doesn't show "undefined"
+        ignore: 'pid,hostname,name',
+        messageFormat: '{msg}',
         errorLikeObjectKeys: ['err', 'error'],
     },
 });
@@ -52,13 +53,14 @@ if (process.env.DANGEROUSLY_LOG_TO_SERVER_FOR_AI_AUTO_DEBUGGING && consolidatedL
         options: {
             destination: consolidatedLogFile,
             mkdir: true,
-            messageFormat: '{levelLabel} {msg} | [server time: {time}]',
+            messageFormat: '{msg} | [server time: {time}]',
         },
     });
 }
 
 // Main server logger with local time formatting
 export const logger = pino({
+    name: 'happy-server',
     level: 'debug',
     transport: {
         targets: transports,
@@ -101,18 +103,66 @@ export const fileConsolidatedLogger = process.env.DANGEROUSLY_LOG_TO_SERVER_FOR_
         timestamp: () => `,"time":${Date.now()},"localTime":"${formatLocalTime()}"`,
     }) : undefined;
 
+function getChild(src: any) {
+    if (src && typeof src === 'object') {
+        const name = src.name || src.module;
+        if (name) {
+            const { name: _n, module: _m, ...rest } = src;
+            return { child: logger.child({ name }), rest } as const;
+        }
+        return { child: logger, rest: src } as const;
+    }
+    return { child: logger, rest: undefined } as const;
+}
+
 export function log(src: any, ...args: any[]) {
-    logger.info(src, ...args);
+    if (typeof src === 'string') {
+        logger.child({ name: 'app' }).info(src, ...args);
+        return;
+    }
+    const { child, rest } = getChild(src);
+    if (args.length > 0) {
+        child.info(rest ?? {}, args[0], ...args.slice(1));
+    } else if (rest) {
+        child.info(rest);
+    }
 }
 
 export function warn(src: any, ...args: any[]) {
-    logger.warn(src, ...args);
+    if (typeof src === 'string') {
+        logger.child({ name: 'app' }).warn(src, ...args);
+        return;
+    }
+    const { child, rest } = getChild(src);
+    if (args.length > 0) {
+        child.warn(rest ?? {}, args[0], ...args.slice(1));
+    } else if (rest) {
+        child.warn(rest);
+    }
 }
 
 export function error(src: any, ...args: any[]) {
-    logger.error(src, ...args);
+    if (typeof src === 'string') {
+        logger.child({ name: 'app' }).error(src, ...args);
+        return;
+    }
+    const { child, rest } = getChild(src);
+    if (args.length > 0) {
+        child.error(rest ?? {}, args[0], ...args.slice(1));
+    } else if (rest) {
+        child.error(rest);
+    }
 }
 
 export function debug(src: any, ...args: any[]) {
-    logger.debug(src, ...args);
+    if (typeof src === 'string') {
+        logger.child({ name: 'app' }).debug(src, ...args);
+        return;
+    }
+    const { child, rest } = getChild(src);
+    if (args.length > 0) {
+        child.debug(rest ?? {}, args[0], ...args.slice(1));
+    } else if (rest) {
+        child.debug(rest);
+    }
 }
