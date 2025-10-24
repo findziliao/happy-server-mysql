@@ -95,9 +95,9 @@ model Session {
     tag               String
     accountId         String
     account           Account          @relation(fields: [accountId], references: [id])
-    metadata          String
+    metadata          String           @db.LongText
     metadataVersion   Int              @default(0)
-    agentState        String?
+    agentState        String?          @db.LongText
     agentStateVersion Int              @default(0)
     dataEncryptionKey Bytes?
     seq               Int              @default(0)
@@ -205,9 +205,9 @@ model Machine {
     id                 String      @id
     accountId          String
     account            Account     @relation(fields: [accountId], references: [id])
-    metadata           String // Encrypted - contains static machine info
+    metadata           String      @db.LongText // Encrypted - contains static machine info (may exceed 64KB)
     metadataVersion    Int         @default(0)
-    daemonState        String? // Encrypted - contains dynamic daemon state
+    daemonState        String?     @db.LongText // Encrypted - contains dynamic daemon state (may exceed 64KB)
     daemonStateVersion Int         @default(0)
     dataEncryptionKey  Bytes?
     seq                Int         @default(0)

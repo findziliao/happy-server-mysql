@@ -266,25 +266,28 @@ export function sessionRoutes(app: Fastify) {
                     accountId: userId,
                     tag: tag,
                     metadata: metadata,
-                    dataEncryptionKey: dataEncryptionKey ? new Uint8Array(Buffer.from(dataEncryptionKey, 'base64')) : undefined
+                    dataEncryptionKey: dataEncryptionKey ? new Uint8Array(Buffer.from(dataEncryptionKey, 'base64')) : null
                 }
             });
             log({ module: 'session-create', sessionId: session.id, userId }, `Session created: ${session.id}`);
 
             // Emit new session update
-            const updatePayload = buildNewSessionUpdate(session, updSeq, randomKeyNaked(12));
-            log({
-                module: 'session-create',
-                userId,
-                sessionId: session.id,
-                updateType: 'new-session',
-                updatePayload: JSON.stringify(updatePayload)
-            }, `Emitting new-session update to all user connections`);
-            eventRouter.emitUpdate({
-                userId,
-                payload: updatePayload,
-                recipientFilter: { type: 'all-user-authenticated-connections' }
-            });
+            try {
+                const updatePayload = buildNewSessionUpdate(session, updSeq, randomKeyNaked(12));
+                log({
+                    module: 'session-create',
+                    userId,
+                    sessionId: session.id,
+                    updateType: 'new-session'
+                }, `Emitting new-session update to all user connections`);
+                eventRouter.emitUpdate({
+                    userId,
+                    payload: updatePayload,
+                    recipientFilter: { type: 'all-user-authenticated-connections' }
+                });
+            } catch (emitErr: any) {
+                log({ module: 'session-create', level: 'error', userId, sessionId: session.id, message: String(emitErr?.message), stack: emitErr?.stack }, 'Non-fatal: failed to emit new-session update');
+            }
 
             return reply.send({
                 session: {
