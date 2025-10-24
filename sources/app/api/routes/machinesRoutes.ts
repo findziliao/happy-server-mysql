@@ -48,60 +48,88 @@ export function machinesRoutes(app: Fastify) {
                 }
             });
         } else {
-            // Create new machine
+            // Create new machine (handle concurrent duplicate requests gracefully)
             log({ module: 'machines', machineId: id, userId }, 'Creating new machine');
 
-            const newMachine = await db.machine.create({
-                data: {
-                    id,
-                    accountId: userId,
-                    metadata,
-                    metadataVersion: 1,
-                    daemonState: daemonState || null,
-                    daemonStateVersion: daemonState ? 1 : 0,
-                    dataEncryptionKey: dataEncryptionKey ? new Uint8Array(Buffer.from(dataEncryptionKey, 'base64')) : undefined,
-                    // Default to offline - in case the user does not start daemon
-                    active: false,
-                    // lastActiveAt and activeAt defaults to now() in schema
-                }
-            });
+            try {
+                const newMachine = await db.machine.create({
+                    data: {
+                        id,
+                        accountId: userId,
+                        metadata,
+                        metadataVersion: 1,
+                        daemonState: daemonState || null,
+                        daemonStateVersion: daemonState ? 1 : 0,
+                        dataEncryptionKey: dataEncryptionKey ? new Uint8Array(Buffer.from(dataEncryptionKey, 'base64')) : undefined,
+                        // Default to offline - in case the user does not start daemon
+                        active: false,
+                        // lastActiveAt and activeAt defaults to now() in schema
+                    }
+                });
 
-            // Emit both new-machine and update-machine events for backward compatibility
-            const updSeq1 = await allocateUserSeq(userId);
-            const updSeq2 = await allocateUserSeq(userId);
-            
-            // Emit new-machine event with all data including dataEncryptionKey
-            const newMachinePayload = buildNewMachineUpdate(newMachine, updSeq1, randomKeyNaked(12));
-            eventRouter.emitUpdate({
-                userId,
-                payload: newMachinePayload
-            });
-            
-            // Emit update-machine event for backward compatibility (without dataEncryptionKey)
-            const machineMetadata = {
-                version: 1,
-                value: metadata
-            };
-            const updatePayload = buildUpdateMachineUpdate(newMachine.id, updSeq2, randomKeyNaked(12), machineMetadata);
-            eventRouter.emitUpdate({
-                userId,
-                payload: updatePayload
-            });
+                // Emit both new-machine and update-machine events for backward compatibility
+                const updSeq1 = await allocateUserSeq(userId);
+                const updSeq2 = await allocateUserSeq(userId);
 
-            return reply.send({
-                machine: {
-                    id: newMachine.id,
-                    metadata: newMachine.metadata,
-                    metadataVersion: newMachine.metadataVersion,
-                    daemonState: newMachine.daemonState,
-                    daemonStateVersion: newMachine.daemonStateVersion,
-                    dataEncryptionKey: newMachine.dataEncryptionKey ? Buffer.from(newMachine.dataEncryptionKey).toString('base64') : null,
-                    active: newMachine.active,
-                    activeAt: newMachine.lastActiveAt.getTime(),  // Return as activeAt for API consistency
-                    createdAt: newMachine.createdAt.getTime(),
-                    updatedAt: newMachine.updatedAt.getTime()
+                // Emit new-machine event with all data including dataEncryptionKey
+                const newMachinePayload = buildNewMachineUpdate(newMachine, updSeq1, randomKeyNaked(12));
+                eventRouter.emitUpdate({
+                    userId,
+                    payload: newMachinePayload
+                });
+
+                // Emit update-machine event for backward compatibility (without dataEncryptionKey)
+                const machineMetadata = {
+                    version: 1,
+                    value: metadata
+                };
+                const updatePayload = buildUpdateMachineUpdate(newMachine.id, updSeq2, randomKeyNaked(12), machineMetadata);
+                eventRouter.emitUpdate({
+                    userId,
+                    payload: updatePayload
+                });
+
+                return reply.send({
+                    machine: {
+                        id: newMachine.id,
+                        metadata: newMachine.metadata,
+                        metadataVersion: newMachine.metadataVersion,
+                        daemonState: newMachine.daemonState,
+                        daemonStateVersion: newMachine.daemonStateVersion,
+                        dataEncryptionKey: newMachine.dataEncryptionKey ? Buffer.from(newMachine.dataEncryptionKey).toString('base64') : null,
+                        active: newMachine.active,
+                        activeAt: newMachine.lastActiveAt.getTime(),  // Return as activeAt for API consistency
+                        createdAt: newMachine.createdAt.getTime(),
+                        updatedAt: newMachine.updatedAt.getTime()
+                    }
+                });
+            } catch (err: any) {
+                // If duplicate (race), return the existing machine instead of 500
+                const isUniqueViolation = err?.code === 'P2002' || /unique|duplicate/i.test(String(err?.message || ''));
+                if (!isUniqueViolation) {
+                    throw err;
                 }
-            });
+                const existing = await db.machine.findFirst({
+                    where: { accountId: userId, id }
+                });
+                if (!existing) {
+                    throw err; // unexpected
+                }
+                return reply.send({
+                    machine: {
+                        id: existing.id,
+                        metadata: existing.metadata,
+                        metadataVersion: existing.metadataVersion,
+                        daemonState: existing.daemonState,
+                        daemonStateVersion: existing.daemonStateVersion,
+                        dataEncryptionKey: existing.dataEncryptionKey ? Buffer.from(existing.dataEncryptionKey).toString('base64') : null,
+                        active: existing.active,
+                        activeAt: existing.lastActiveAt.getTime(),  // Return as activeAt for API consistency
+                        createdAt: existing.createdAt.getTime(),
+                        updatedAt: existing.updatedAt.getTime()
+                    }
+                });
+            }
         }
     });
 
