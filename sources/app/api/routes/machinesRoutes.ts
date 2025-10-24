@@ -60,7 +60,8 @@ export function machinesRoutes(app: Fastify) {
                         metadataVersion: 1,
                         daemonState: daemonState || null,
                         daemonStateVersion: daemonState ? 1 : 0,
-                        dataEncryptionKey: dataEncryptionKey ? new Uint8Array(Buffer.from(dataEncryptionKey, 'base64')) : undefined,
+                        // Prisma Bytes expects Buffer; use Buffer instead of Uint8Array
+                        dataEncryptionKey: dataEncryptionKey ? Buffer.from(dataEncryptionKey, 'base64') : undefined,
                         // Default to offline - in case the user does not start daemon
                         active: false,
                         // lastActiveAt and activeAt defaults to now() in schema
