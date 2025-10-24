@@ -21,14 +21,14 @@ export function machinesRoutes(app: Fastify) {
     }, async (request, reply) => {
         const userId = request.userId;
         const { id, metadata, daemonState, dataEncryptionKey } = request.body;
-
-        // Check if machine exists (like sessions do)
-        const machine = await db.machine.findFirst({
-            where: {
-                accountId: userId,
-                id: id
-            }
-        });
+        try {
+            // Check if machine exists (like sessions do)
+            const machine = await db.machine.findFirst({
+                where: {
+                    accountId: userId,
+                    id: id
+                }
+            });
 
         if (machine) {
             // Machine exists - just return it
@@ -108,12 +108,15 @@ export function machinesRoutes(app: Fastify) {
                 // If duplicate (race), return the existing machine instead of 500
                 const isUniqueViolation = err?.code === 'P2002' || /unique|duplicate/i.test(String(err?.message || ''));
                 if (!isUniqueViolation) {
+                    // Add detailed error context for troubleshooting
+                    log({ module: 'machines', level: 'error', userId, machineId: id, code: err?.code, meta: err?.meta, message: String(err?.message) }, 'Machine create failed');
                     throw err;
                 }
                 const existing = await db.machine.findFirst({
                     where: { accountId: userId, id }
                 });
                 if (!existing) {
+                    log({ module: 'machines', level: 'error', userId, machineId: id, code: err?.code, meta: err?.meta, message: String(err?.message) }, 'Unique violation but machine not found afterwards');
                     throw err; // unexpected
                 }
                 return reply.send({
@@ -131,6 +134,11 @@ export function machinesRoutes(app: Fastify) {
                     }
                 });
             }
+        }
+        } catch (error: any) {
+            // Extra safeguard logging
+            log({ module: 'machines', level: 'error', userId, machineId: id, code: error?.code, meta: error?.meta, message: String(error?.message), stack: error?.stack }, 'Unhandled error in POST /v1/machines');
+            throw error;
         }
     });
 
