@@ -22,10 +22,11 @@ async function main() {
     onShutdown('activity-cache', async () => {
         activityCache.shutdown();
     });
-    if (redis) {
-        await redis.ping();
+    const redisClient = redis;
+    if (redisClient) {
+        await redisClient.ping();
         onShutdown('redis', async () => {
-            await redis.quit();
+            await redisClient.quit();
         });
     } else {
         log({ module: 'redis' }, 'REDIS_URL not set; skipping Redis connection');
