@@ -28,6 +28,21 @@ Your Claude Code clients generate encryption keys locally and use Happy Server a
 
 That said, Happy Server is open source and self-hostable if you prefer running your own infrastructure. The security model is identical whether you use our servers or your own.
 
+## Deploy to Hugging Face Spaces (Docker)
+
+1. Create a new Space and choose **Docker** as the SDK.
+2. Push this repository to the Space (or connect the Space to your Git repo).
+3. In the Space settings, add **Secrets / Variables** (do not commit real credentials):
+   - `DATABASE_URL`: use the value from `.env.mysql` (MySQL connection string)
+   - `HANDY_MASTER_SECRET`: a strong random secret (required for auth/token encryption)
+   - Optional: `METRICS_ENABLED=false` (disable the extra metrics server)
+   - Optional integrations: `GITHUB_*`, `ELEVENLABS_API_KEY`, `S3_*`
+4. Ensure your MySQL instance is reachable from the public Internet (firewall / security group allows inbound from Hugging Face runners).
+
+Notes:
+- The Docker image defaults to `PORT=7860` (Hugging Face Spaces convention). Override `PORT` only if you know what you’re doing.
+- If your MySQL requires TLS, add the relevant query params to `DATABASE_URL` (example: `?sslaccept=strict`).
+
 ## License
 
 MIT - Use it, modify it, deploy it anywhere.

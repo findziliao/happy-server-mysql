@@ -6,6 +6,10 @@ RUN apt-get update && apt-get install -y python3 ffmpeg make g++ build-essential
 
 WORKDIR /app
 
+# Prisma's postinstall `prisma generate` requires DATABASE_URL to be set during build.
+# This placeholder is overridden at runtime via environment variables.
+ENV DATABASE_URL=mysql://user:pass@localhost:3306/db
+
 # Copy package.json and yarn.lock
 COPY package.json yarn.lock ./
 COPY ./prisma ./prisma
@@ -32,6 +36,9 @@ RUN apt-get update && apt-get install -y python3 ffmpeg && rm -rf /var/lib/apt/l
 # Set environment to production
 ENV NODE_ENV=production
 
+# Hugging Face Spaces (Docker) expects the app to listen on port 7860.
+ENV PORT=7860
+
 # Copy necessary files from the builder stage
 COPY --from=builder /app/tsconfig.json ./tsconfig.json
 COPY --from=builder /app/package.json ./package.json
@@ -39,7 +46,7 @@ COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/sources ./sources
 
 # Expose the port the app will run on
-EXPOSE 3000
+EXPOSE 7860
 
 # Command to run the application
 CMD ["yarn", "start"] 

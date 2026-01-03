@@ -22,7 +22,14 @@ async function main() {
     onShutdown('activity-cache', async () => {
         activityCache.shutdown();
     });
-    await redis.ping();
+    if (redis) {
+        await redis.ping();
+        onShutdown('redis', async () => {
+            await redis.quit();
+        });
+    } else {
+        log({ module: 'redis' }, 'REDIS_URL not set; skipping Redis connection');
+    }
 
     // Initialize auth module
     await initEncrypt();
