@@ -75,11 +75,11 @@ export async function userRoutes(app: Fastify) {
         const { query } = request.query;
 
         // Search for users by username, first 10 matches
+        // MySQL is case-insensitive by default, so we don't need mode: 'insensitive'
         const users = await db.account.findMany({
             where: {
                 username: {
-                    startsWith: query,
-                    mode: 'insensitive'
+                    startsWith: query
                 }
             },
             include: {
@@ -100,7 +100,14 @@ export async function userRoutes(app: Fastify) {
                 }
             });
             const status: RelationshipStatus = relationship?.status || RelationshipStatus.none;
-            return buildUserProfile(user, status);
+            return buildUserProfile({
+                id: user.id,
+                firstName: user.firstName,
+                lastName: user.lastName,
+                username: user.username,
+                avatar: user.avatar,
+                githubUser: user.githubUser ? { profile: user.githubUser.profile } : null
+            }, status);
         }));
 
         return reply.send({

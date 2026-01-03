@@ -17,16 +17,22 @@ export function startTimeout() {
                 }
             });
             for (const session of sessions) {
-                const updated = await db.session.updateManyAndReturn({
+                // MySQL doesn't support updateManyAndReturn, use update instead
+                const updated = await db.session.updateMany({
                     where: { id: session.id, active: true },
                     data: { active: false }
                 });
-                if (updated.length === 0) {
+                if (updated.count === 0) {
                     continue;
                 }
+                // Fetch the updated session to get lastActiveAt
+                const updatedSession = await db.session.findUnique({
+                    where: { id: session.id },
+                    select: { lastActiveAt: true }
+                });
                 eventRouter.emitEphemeral({
                     userId: session.accountId,
-                    payload: buildSessionActivityEphemeral(session.id, false, updated[0].lastActiveAt.getTime(), false),
+                    payload: buildSessionActivityEphemeral(session.id, false, updatedSession?.lastActiveAt.getTime() ?? session.lastActiveAt.getTime(), false),
                     recipientFilter: { type: 'user-scoped-only' }
                 });
             }
@@ -41,16 +47,22 @@ export function startTimeout() {
                 }
             });
             for (const machine of machines) {
-                const updated = await db.machine.updateManyAndReturn({
+                // MySQL doesn't support updateManyAndReturn, use update instead
+                const updated = await db.machine.updateMany({
                     where: { id: machine.id, active: true },
                     data: { active: false }
                 });
-                if (updated.length === 0) {
+                if (updated.count === 0) {
                     continue;
                 }
+                // Fetch the updated machine to get lastActiveAt
+                const updatedMachine = await db.machine.findUnique({
+                    where: { id: machine.id },
+                    select: { lastActiveAt: true }
+                });
                 eventRouter.emitEphemeral({
                     userId: machine.accountId,
-                    payload: buildMachineActivityEphemeral(machine.id, false, updated[0].lastActiveAt.getTime()),
+                    payload: buildMachineActivityEphemeral(machine.id, false, updatedMachine?.lastActiveAt.getTime() ?? machine.lastActiveAt.getTime()),
                     recipientFilter: { type: 'user-scoped-only' }
                 });
             }
