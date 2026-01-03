@@ -279,11 +279,11 @@ export function sessionRoutes(app: Fastify) {
                     userId,
                     sessionId: session.id,
                     updateType: 'new-session'
-                }, `Emitting new-session update to all user connections`);
+                }, `Emitting new-session update to user-scoped connections`);
                 eventRouter.emitUpdate({
                     userId,
                     payload: updatePayload,
-                    recipientFilter: { type: 'all-user-authenticated-connections' }
+                    recipientFilter: { type: 'user-scoped-only' }
                 });
             } catch (emitErr: any) {
                 log({ module: 'session-create', level: 'error', userId, sessionId: session.id, message: String(emitErr?.message), stack: emitErr?.stack }, 'Non-fatal: failed to emit new-session update');
