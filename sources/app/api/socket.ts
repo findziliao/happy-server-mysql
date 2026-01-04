@@ -12,8 +12,10 @@ import { sessionUpdateHandler } from "./socket/sessionUpdateHandler";
 import { machineUpdateHandler } from "./socket/machineUpdateHandler";
 import { artifactUpdateHandler } from "./socket/artifactUpdateHandler";
 import { accessKeyHandler } from "./socket/accessKeyHandler";
+import { joinWithBasePath } from "./utils/basePath";
 
-export function startSocket(app: Fastify) {
+export function startSocket(app: Fastify, basePath: string = '') {
+    const socketPath = joinWithBasePath(basePath, '/v1/updates');
     const io = new Server(app.server, {
         cors: {
             origin: "*",
@@ -24,7 +26,7 @@ export function startSocket(app: Fastify) {
         transports: ['websocket', 'polling'],
         pingTimeout: 45000,
         pingInterval: 15000,
-        path: '/v1/updates',
+        path: socketPath,
         allowUpgrades: true,
         upgradeTimeout: 10000,
         connectTimeout: 20000,

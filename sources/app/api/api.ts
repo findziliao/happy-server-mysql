@@ -21,11 +21,14 @@ import { enableAuthentication } from "./utils/enableAuthentication";
 import { userRoutes } from "./routes/userRoutes";
 import { feedRoutes } from "./routes/feedRoutes";
 import { kvRoutes } from "./routes/kvRoutes";
+import { normalizeBasePath } from "./utils/basePath";
 
 export async function startApi() {
 
     // Configure
     log('Starting API...');
+
+    const basePath = normalizeBasePath(process.env.BASE_PATH);
 
     // Start API
     const app = fastify({
@@ -38,34 +41,46 @@ export async function startApi() {
         methods: ['GET', 'POST', 'DELETE']
     });
     app.get('/', function (request, reply) {
+        if (basePath) {
+            reply.redirect(302, `${basePath}/`);
+            return;
+        }
         reply.send('Welcome to Happy Server!');
     });
 
-    // Create typed provider
-    app.setValidatorCompiler(validatorCompiler);
-    app.setSerializerCompiler(serializerCompiler);
-    const typed = app.withTypeProvider<ZodTypeProvider>() as unknown as Fastify;
+    app.register(async (scoped) => {
+        if (basePath) {
+            scoped.get('/', function (_request, reply) {
+                reply.send('Welcome to Happy Server!');
+            });
+        }
 
-    // Enable features
-    enableMonitoring(typed);
-    enableErrorHandlers(typed);
-    enableAuthentication(typed);
+        // Create typed provider
+        scoped.setValidatorCompiler(validatorCompiler);
+        scoped.setSerializerCompiler(serializerCompiler);
+        const typed = scoped.withTypeProvider<ZodTypeProvider>() as unknown as Fastify;
 
-    // Routes
-    authRoutes(typed);
-    pushRoutes(typed);
-    sessionRoutes(typed);
-    accountRoutes(typed);
-    connectRoutes(typed);
-    machinesRoutes(typed);
-    artifactsRoutes(typed);
-    accessKeysRoutes(typed);
-    devRoutes(typed);
-    versionRoutes(typed);
-    voiceRoutes(typed);
-    userRoutes(typed);
-    feedRoutes(typed);
-    kvRoutes(typed);
+        // Enable features
+        enableMonitoring(typed);
+        enableErrorHandlers(typed);
+        enableAuthentication(typed);
+
+        // Routes
+        authRoutes(typed);
+        pushRoutes(typed);
+        sessionRoutes(typed);
+        accountRoutes(typed);
+        connectRoutes(typed);
+        machinesRoutes(typed);
+        artifactsRoutes(typed);
+        accessKeysRoutes(typed);
+        devRoutes(typed);
+        versionRoutes(typed);
+        voiceRoutes(typed);
+        userRoutes(typed);
+        feedRoutes(typed);
+        kvRoutes(typed);
+    }, basePath ? { prefix: basePath } : {});
 
     // Start HTTP 
     const port = process.env.PORT ? parseInt(process.env.PORT, 10) : 3005;
@@ -75,7 +90,7 @@ export async function startApi() {
     });
 
     // Start Socket
-    startSocket(typed);
+    startSocket(app as unknown as Fastify, basePath);
 
     // End
     log('API ready on port http://localhost:' + port);

@@ -35,6 +35,7 @@ That said, Happy Server is open source and self-hostable if you prefer running y
 3. In the Space settings, add **Secrets / Variables** (do not commit real credentials):
    - `DATABASE_URL`: use the value from `.env.mysql` (MySQL connection string)
    - `HANDY_MASTER_SECRET`: a strong random secret (required for auth/token encryption)
+   - Optional: `BASE_PATH=/happy` (serve under a subpath like `/happy/*` instead of `/`)
    - Optional: `METRICS_ENABLED=false` (disable the extra metrics server)
    - Optional integrations: `GITHUB_*`, `ELEVENLABS_API_KEY`, `S3_*`
 4. Ensure your MySQL instance is reachable from the public Internet (firewall / security group allows inbound from Hugging Face runners).
