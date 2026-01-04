@@ -42,7 +42,9 @@ export async function startApi() {
     });
     app.get('/', function (request, reply) {
         if (basePath) {
-            reply.redirect(`${basePath}/`, 302);
+            reply.type('text/html; charset=utf-8').send(
+                `<html><head><title>Hello World</title></head><body>Hello World</body></html>`
+            );
             return;
         }
         reply.send('Welcome to Happy Server!');
