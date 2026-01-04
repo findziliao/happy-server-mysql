@@ -1,3 +1,13 @@
+---
+title: happy-server
+emoji: 🚀
+colorFrom: indigo
+colorTo: pink
+sdk: docker
+app_port: 7860
+pinned: false
+---
+
 # Happy Server
 
 Minimal backend for open-source end-to-end encrypted Claude Code clients.
