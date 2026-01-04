@@ -1,0 +1,12 @@
+node_modules
+.git
+.vscode
+.env
+.env.*
+.logs
+.pgdata
+.minio
+npm-debug.log
+yarn-debug.log
+yarn-error.log
+Dockerfile.*
